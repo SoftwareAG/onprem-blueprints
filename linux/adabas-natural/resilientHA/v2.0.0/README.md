@@ -10,10 +10,10 @@ load balancers, storage, and network shown in the diagram and install the Adabas
 ## Architecture Layers
 - **DMZ / External load balancers:** an **HA load balancer** fronts the application
   tier so client traffic (HTTPS) fails over automatically between healthy nodes.
-- **Application tier (Natural):** multiple Linux VMs, each running NHA (Natural High
-  Availability), NWO, Natural, and Natural Security, fronted by the Natural
-  Availability Server. A **Redis Enterprise Cluster** provides shared session/state
-  so the Natural nodes operate active-active.
+- **Application tier (Natural):** multiple replicas of the **Natural Availability
+  Server** (with NWO, Natural, and Natural Security) running in HA mode across Linux
+  VMs. A **Redis Enterprise Cluster** provides the shared session/state cache so the
+  replicas operate active-active.
 - **Data tier (Adabas):** a 3-node **Adabas Cluster for Linux** — a **shared-nothing**
   database cluster. A **Primary** node (Adabas with AEL, Adabas REST Server, Natural
   Batch) replicates to two **Secondary** nodes for resilience. Each node owns its own
@@ -63,25 +63,26 @@ Cluster for Linux delivers.
 - **Defense in depth:** combined with network isolation and encryption in transit
   (ADATCP/S), it protects data across its full lifecycle.
 
-### Natural for High Availability / Natural Availability Server (Application Tier)
-Natural High Availability (NHA), together with the Natural Availability Server, lets
-multiple Natural runtimes on separate nodes act as **one logical, always-on
-application service** behind the load balancer.
+### Natural Availability Server (Application Tier)
+Natural Availability Server is the product that makes the Natural application tier
+highly available. It runs as **multiple replicas in HA mode**, sharing session and
+application state through a **Redis cache** so that all replicas act as **one
+logical, always-on application service** behind the load balancer.
 
-- **Transparent failover:** user sessions and application state are preserved across
-  nodes (backed by the Redis Enterprise cluster), so a node loss does not interrupt
-  active users.
-- **Active-active application tier:** all Natural nodes serve traffic
+- **Transparent failover:** session and application state are held in the Redis
+  cache, so if a replica is lost, users are served by another replica without
+  interruption.
+- **Active-active replicas:** all Natural Availability Server replicas serve traffic
   simultaneously, maximizing utilization and eliminating idle standby servers.
-- **Elastic scale-out:** add Natural nodes behind the load balancer to grow capacity
+- **Elastic scale-out:** add replicas behind the load balancer to grow capacity
   linearly as demand increases.
-- **Non-disruptive operations:** drain and update individual Natural nodes for
+- **Non-disruptive operations:** drain and update individual replicas for
   application or platform maintenance without a service outage.
 - **Consistent security:** Natural Security is enforced uniformly across every node
   in the cluster.
 
 ### Why It Matters
-Together, Adabas Cluster for Linux and Natural High Availability remove the two
+Together, Adabas Cluster for Linux and the Natural Availability Server remove the two
 classic single points of failure in an Adabas & Natural deployment — the database
 and the application runtime — while Adabas Encryption for Linux secures the data on
 every node. The result is a mission-critical platform that supports demanding
@@ -93,9 +94,10 @@ government, and healthcare workloads, and enables planned maintenance and scalin
 - **Linux VMs (RedHat/SUSE), multi-node** – redundant application, data, and
   management nodes.
 - **HA load balancer** – distributes traffic to healthy Natural nodes in the DMZ.
-- **Natural High Availability + Natural Availability Server** – active-active Natural
-  application tier with transparent session failover.
-- **Redis Enterprise Cluster** – shared state for active-active Natural nodes.
+- **Natural Availability Server** – multiple replicas in HA mode forming an
+  active-active Natural application tier with transparent session failover.
+- **Redis Enterprise Cluster** – shared session/state cache for the active-active
+  Natural Availability Server replicas.
 - **Adabas Cluster for Linux** – 3-node shared-nothing database cluster with a
   primary and two secondary replicas.
 - **SAN / Block Storage (per node)** – dedicated, encrypted persistent storage for
