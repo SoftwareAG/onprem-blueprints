@@ -64,10 +64,14 @@ Cluster for Linux delivers.
   (ADATCP/S), it protects data across its full lifecycle.
 
 ### Natural Availability Server (Application Tier)
-Natural Availability Server is the product that makes the Natural application tier
-highly available. It runs as **multiple replicas in HA mode**, sharing session and
-application state through a **Redis cache** so that all replicas act as **one
-logical, always-on application service** behind the load balancer.
+The Natural Availability Server is the web front end that makes Natural online
+applications highly available. It provides a Natural terminal emulator as a modern
+Angular and REST-based web application, and it lets Natural online applications run
+in a scalable, highly available environment. Depending on the infrastructure and the
+architecture chosen, availability can exceed **99.99%**. It runs as **multiple
+replicas in HA mode**, sharing session and application state through a **Redis
+cache** so that all replicas act as **one logical, always-on application service**
+behind the load balancer.
 
 - **Transparent failover:** session and application state are held in the Redis
   cache, so if a replica is lost, users are served by another replica without
