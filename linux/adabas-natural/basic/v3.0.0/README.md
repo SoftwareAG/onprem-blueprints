@@ -18,8 +18,10 @@ provision the VMs, storage, and network shown in the diagrams and install the Ad
 - **API layer (Natural OpenAPI Server):** publishes selected Natural subprograms as
   OpenAPI-described REST services over **HTTPS**, secured with OIDC.
 - **Application layer (Natural):** the Natural runtime and applications — Natural,
-  Natural Batch, NDV (Natural Development Server), and the **Natural Subprogram
-  Server** — reachable by end users, API callers, and developer tooling.
+  Natural Security, Natural Batch, NDV (Natural Development Server), the **Natural
+  Subprogram Server** and, in the Distributed shape, the Natural Availability Server
+  (NAS) with Natural Web I/O (NWO) — reachable by end users, API callers, and
+  developer tooling.
 - **Data layer (Adabas):** the Adabas database with Adabas Encryption for Linux
   (AEL), the Adabas REST Server, and Adabas Manager. Database containers
   (ASSO · DATA · WORK · PLOG) are held on SAN / block storage.
@@ -31,8 +33,12 @@ The Basic blueprint supports two shapes:
   Natural OpenAPI Server over **HTTPS**.
 - **Distributed:** the Natural application layer and the Adabas data layer run on
   separate Linux VMs so each layer can be sized, secured, and maintained
-  independently. The Natural OpenAPI Server and the Natural Subprogram Server run on
-  the Natural VM. The layers communicate over **ADATCP/S**.
+  independently. The application VM runs the Natural OpenAPI Server, the Natural
+  Subprogram Server, the Natural Availability Server (browser users over **HTTPS**,
+  rendered through NWO), NDV, Natural, and Natural Security. The data VM runs Adabas
+  (AEL), the Adabas REST Server, Adabas Manager, and Natural Batch. The layers
+  communicate over **ADATCP/S**. A single NAS instance needs no shared session store;
+  for multiple NAS replicas and failover, use the Resilient HA blueprint.
 
 ## Key New Products
 
@@ -78,9 +84,15 @@ by remote callers.
   infrastructure backup, file server, log server, and monitoring & alerting.
 
 ## Architecture Diagrams
-See the `docs` folder (v3.0.0 diagrams to be added):
-- `Adabas and Natural on On-Prem - Basic Development.gif`
-- `Adabas and Natural on On-Prem - Basic Distributed.gif`
+See the `docs` folder. The diagrams use the same on-prem notation as the Resilient HA
+v3.0.0 blueprint (the editable `.drawio` sources are kept locally and are not
+published):
+- **Development** – `Adabas and Natural on On-Prem - Basic Development-v3.0.0.gif` –
+  one Linux VM hosting the Natural OpenAPI Server, Natural Subprogram Server, NDV,
+  Natural, Natural Security, Natural Batch, and the Adabas components.
+- **Distributed** – `Adabas and Natural on On-Prem - Basic Distributed-v3.0.0.gif` –
+  an application VM (API and Natural runtime) and a data VM (Adabas and Natural
+  Batch) connected over ADATCP/S.
 
 ## Intended Use
 Development, prototyping, API enablement pilots, and small production workloads. For

@@ -9,32 +9,44 @@ load balancers, storage, and network shown in the diagram and install the Adabas
 
 ## What's New in v3.0.0
 - **Natural OpenAPI Server** – exposes Natural subprograms as REST endpoints described
-  by OpenAPI. In this blueprint it runs as multiple active-active instances behind
-  the HA load balancer.
+  by OpenAPI. In this blueprint it runs as multiple active-active instances across
+  sites behind the HA load balancer.
 - **Natural Subprogram Server** – hosts and runs Natural subprograms on behalf of
-  remote callers. It is deployed on every Natural application node, so API calls
-  survive the loss of a single node.
+  remote callers. It runs on application VMs in more than one site, so API calls
+  survive the loss of a single node or site.
 
 ## Architecture Layers
-- **DMZ / External load balancers:** an **HA load balancer** fronts the application
-  and API tiers so client traffic (HTTPS) fails over automatically between healthy
-  nodes.
-- **API tier (Natural OpenAPI Server):** multiple instances of the **Natural OpenAPI
-  Server** across Linux VMs publish Natural subprograms as OpenAPI-described REST
-  services over **HTTPS**, secured with OIDC.
-- **Application tier (Natural):** multiple replicas of the **Natural Availability
-  Server** (with NWO, Natural, and Natural Security) running in HA mode across Linux
-  VMs. A **Redis Enterprise Cluster** provides the shared session/state cache so the
-  replicas operate active-active. Each application node also runs the **Natural
-  Subprogram Server**, which serves the subprogram calls coming from the API tier.
+The workload is spread across three **sites** (separate datacenters, or isolated
+server rooms on low-latency links) — **Site A**, **Site B**, and **Site C** — the
+on-prem equivalent of cloud Availability Zones. Each tier sits in its own VLAN, and
+an internal firewall separates the DMZ from the workload network.
+
+- **DMZ (connectivity & security):** an external **HA load balancer** (TLS
+  termination) with a **WAF / reverse proxy**, the perimeter firewall, the datacenter
+  edge router, a **PAM / bastion host** for administrative access, DNS, PKI, and an
+  optional API gateway. Client traffic over **HTTPS** is distributed to healthy
+  web-tier VMs in Sites A and B.
+- **Web tier (Natural OpenAPI Server, Natural Availability Server):** in each of
+  Sites A and B, one Linux VM runs the **Natural OpenAPI Server** and one runs the
+  **Natural Availability Server**. The OpenAPI Server publishes Natural subprograms
+  as OpenAPI-described REST services, secured with OIDC. The Natural Availability
+  Server replicas run in HA mode and share session/state through a **Redis
+  Enterprise Cluster**, so they operate active-active.
+- **Application tier (Natural):** an **internal HA load balancer** distributes calls
+  from the web tier to the application VMs in Sites A and B. Each site has a
+  **Natural Subprogram Server** VM, which serves subprogram calls from the OpenAPI
+  Server, and a **Natural Web/IO** VM, which serves the Natural Availability Server.
+  Both run Natural and Natural Security.
 - **Data tier (Adabas):** a 3-node **Adabas Cluster for Linux** — a **shared-nothing**
-  database cluster. A **Primary** node (Adabas with AEL, Adabas REST Server, Natural
-  Batch) replicates to two **Secondary** nodes for resilience. Each node owns its own
+  database cluster with one node per site. The **Primary** node in Site A (Adabas
+  with AEL, Adabas REST Server, Natural Batch) replicates (SYNC) to **Secondary**
+  nodes in Sites B and C (with Natural Batch for failover). Each node owns its own
   dedicated SAN / block storage (ASSO · DATA · WORK · PLOG) — nothing is shared
   between nodes — with read/write on the primary and read replicas on the
   secondaries.
-- **Management tier:** a dedicated Linux VM running **Adabas Manager** for
-  administration of the data tier.
+- **Management tier (Site C):** a Linux VM running **Adabas Manager**, which manages
+  all three database nodes, and a **Jumphost**, reached through the PAM / bastion
+  host, for administrative SSH access.
 
 The application and data tiers communicate over **ADATCP/S**.
 
@@ -103,8 +115,8 @@ behind the load balancer.
 The Natural Subprogram Server is the runtime that runs Natural subprograms requested
 by remote callers such as the Natural OpenAPI Server.
 
-- **Redundant execution:** an instance runs on each application node, so the API
-  tier always has a healthy target if a node is lost.
+- **Redundant execution:** an instance runs in each of Sites A and B, so the API
+  tier always has a healthy target if a node or a site is lost.
 - **Isolation from online users:** API-driven calls run in their own server
   processes, separate from interactive Natural Availability Server sessions.
 - **Elastic capacity:** add application nodes or server processes to scale API
@@ -139,14 +151,22 @@ mission-critical platform that supports demanding **RTO/RPO** targets, sustains
 enables planned maintenance and scaling **without downtime**.
 
 ## Infrastructure & Security Resources
-- **Linux VMs (RedHat/SUSE), multi-node** – redundant API, application, data, and
-  management nodes.
-- **HA load balancer** – distributes traffic to healthy Natural OpenAPI Server and
-  Natural nodes in the DMZ.
+- **Three sites (A / B / C)** – separate datacenters or isolated server rooms on
+  low-latency links, so the platform survives the loss of a whole site.
+- **Linux VMs (RedHat/SUSE), multi-node** – redundant web, application, data, and
+  management nodes spread across the sites.
+- **HA load balancer (external)** – TLS termination in the DMZ; distributes HTTPS
+  traffic to healthy Natural OpenAPI Server and Natural Availability Server VMs.
+- **Internal HA load balancer** – distributes calls from the web tier to healthy
+  Natural Subprogram Server and Natural Web/IO VMs.
+- **WAF / reverse proxy & API gateway (optional)** – web application firewall,
+  rate limiting, and API versioning in front of the web tier.
+- **PAM / bastion host & Jumphost** – administrative access to Adabas Manager and
+  the workload VMs without direct exposure.
 - **Natural OpenAPI Server** – multiple active-active instances publishing Natural
   subprograms as REST APIs.
-- **Natural Subprogram Server** – one instance per application node, running
-  subprograms called through the API tier.
+- **Natural Subprogram Server** – one VM per site in Sites A and B, running
+  subprograms called through the OpenAPI Server.
 - **Natural Availability Server** – multiple replicas in HA mode forming an
   active-active Natural application tier with transparent session failover.
 - **Redis Enterprise Cluster** – shared session/state cache for the active-active
@@ -157,9 +177,11 @@ enables planned maintenance and scaling **without downtime**.
   the Adabas containers (ASSO · DATA · WORK · PLOG) on each node.
 - **Adabas Encryption for Linux (AEL)** – transparent encryption of Adabas data at
   rest on every cluster node.
-- **Firewall** – boundary between the customer network and the on-prem datacenter;
-  HTTPS to the API tier only from approved sources, Adabas ports (ADATCP/S) reachable
-  only from the Natural layer, management access restricted to trusted ranges.
+- **Perimeter & internal firewalls, VLAN segmentation** – the perimeter firewall
+  bounds the customer network and the DMZ; the internal firewall enforces tier-scoped
+  rules between the Web, App, and Data VLANs: HTTPS to the web tier only from the
+  DMZ, Adabas ports (ADATCP/S) reachable only from the Natural layer, and management
+  access only through the PAM / bastion host.
 - **TLS certificates** – issued by the corporate PKI for the HTTPS endpoints.
 - **Site-to-site connectivity** – MPLS / SD-WAN / VPN between the office edge router
   and the datacenter edge router.
@@ -167,8 +189,17 @@ enables planned maintenance and scaling **without downtime**.
   infrastructure backup, file server, log server, and monitoring & alerting.
 
 ## Architecture Diagrams
-See the `docs` folder (v3.0.0 diagrams to be added):
-- `Adabas and Natural on On-Prem - ResilientHA.gif`
+See the `docs` folder for the `.gif` diagrams (the editable `.drawio` sources are kept
+locally and are not published).
+
+- **Multi-site** – `Adabas and Natural on On-Prem - ResilientHA-v3.0.0` – the layout
+  described above: three sites (A / B / C) with Web, App, and Data VLANs, a DMZ, and
+  an internal load balancer. It mirrors the Azure Resilient HA v3.0.0 blueprint.
+- **Single datacenter** – `Adabas and Natural on On-Prem - ResilientHA - Single Datacenter-v3.0.0`
+  – the v2.0.0 tier layout (DMZ → API → App → Data) in one datacenter. Each app VM
+  co-hosts the Natural Availability Server (NHA, NWO, Natural, Natural Security) and
+  the **Natural Subprogram Server**, called by the **Natural OpenAPI Server** VMs in
+  the new API tier. v3.0.0 additions are marked with a `v3.0.0` badge.
 
 ## Intended Use
 Production workloads requiring high availability, business continuity, disaster
