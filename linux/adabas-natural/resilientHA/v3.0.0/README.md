@@ -52,8 +52,8 @@ The application and data tiers communicate over **ADATCP/S**.
 
 ## Key High Availability Products
 Five products deliver the continuous availability, API access, and data protection
-of this blueprint — two for the data tier, two for the application tier, and one for
-the API tier.
+of this blueprint — two for the data tier, two for the web tier, and one for the
+application tier.
 
 ### Adabas Cluster for Linux (Data Tier)
 Adabas Cluster for Linux is a **3-node, shared-nothing database cluster**. Each node
@@ -89,7 +89,7 @@ Cluster for Linux delivers.
 - **Defense in depth:** combined with network isolation and encryption in transit
   (ADATCP/S), it protects data across its full lifecycle.
 
-### Natural Availability Server (Application Tier)
+### Natural Availability Server (Web Tier)
 The Natural Availability Server is the web front end that makes Natural online
 applications highly available. It provides a Natural terminal emulator as a modern
 Angular and REST-based web application, and it lets Natural online applications run
@@ -115,7 +115,7 @@ behind the load balancer.
 The Natural Subprogram Server is the runtime that runs Natural subprograms requested
 by remote callers such as the Natural OpenAPI Server.
 
-- **Redundant execution:** an instance runs in each of Sites A and B, so the API
+- **Redundant execution:** an instance runs in each of Sites A and B, so the web
   tier always has a healthy target if a node or a site is lost.
 - **Isolation from online users:** API-driven calls run in their own server
   processes, separate from interactive Natural Availability Server sessions.
@@ -124,7 +124,7 @@ by remote callers such as the Natural OpenAPI Server.
 - **Consistent security:** Natural Security rules apply to subprograms run through the
   server, just as they do for online users.
 
-### Natural OpenAPI Server (API Tier)
+### Natural OpenAPI Server (Web Tier)
 The Natural OpenAPI Server turns existing Natural subprograms into REST APIs without
 changes to the Natural code.
 
@@ -196,10 +196,10 @@ locally and are not published).
   described above: three sites (A / B / C) with Web, App, and Data VLANs, a DMZ, and
   an internal load balancer. It mirrors the Azure Resilient HA v3.0.0 blueprint.
 - **Single datacenter** – `Adabas and Natural on On-Prem - ResilientHA - Single Datacenter-v3.0.0`
-  – the v2.0.0 tier layout (DMZ → API → App → Data) in one datacenter. Each app VM
-  co-hosts the Natural Availability Server (NHA, NWO, Natural, Natural Security) and
-  the **Natural Subprogram Server**, called by the **Natural OpenAPI Server** VMs in
-  the new API tier. v3.0.0 additions are marked with a `v3.0.0` badge.
+  – the same tiers (DMZ → Web → App → Data) in one datacenter. Each web VM runs the
+  **Natural Availability Server** and the **Natural OpenAPI Server**; each app VM runs
+  NWO, Natural, Natural Security, and the **Natural Subprogram Server**. v3.0.0
+  additions are marked with a `v3.0.0` badge.
 
 ## Intended Use
 Production workloads requiring high availability, business continuity, disaster

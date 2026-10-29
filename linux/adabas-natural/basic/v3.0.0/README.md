@@ -15,13 +15,14 @@ provision the VMs, storage, and network shown in the diagrams and install the Ad
   interactive Natural sessions.
 
 ## Architecture Layers
-- **API layer (Natural OpenAPI Server):** publishes selected Natural subprograms as
-  OpenAPI-described REST services over **HTTPS**, secured with OIDC.
+- **Web layer (Natural OpenAPI Server, Natural Availability Server):** the Natural
+  OpenAPI Server publishes selected Natural subprograms as OpenAPI-described REST
+  services over **HTTPS**, secured with OIDC. In the Distributed shape, the Natural
+  Availability Server (NAS) serves browser users over **HTTPS**.
 - **Application layer (Natural):** the Natural runtime and applications — Natural,
   Natural Security, Natural Batch, NDV (Natural Development Server), the **Natural
-  Subprogram Server** and, in the Distributed shape, the Natural Availability Server
-  (NAS) with Natural Web I/O (NWO) — reachable by end users, API callers, and
-  developer tooling.
+  Subprogram Server** and, in the Distributed shape, Natural Web I/O (NWO), which
+  serves the NAS — reachable by the web layer and developer tooling.
 - **Data layer (Adabas):** the Adabas database with Adabas Encryption for Linux
   (AEL), the Adabas REST Server, and Adabas Manager. Database containers
   (ASSO · DATA · WORK · PLOG) are held on SAN / block storage.
@@ -31,13 +32,13 @@ The Basic blueprint supports two shapes:
   simplicity. Users connect via terminal emulation over **SSH**, NaturalONE / NJX
   over **SSL/TLS**, VS Code and browsers over **HTTPS**, and API clients call the
   Natural OpenAPI Server over **HTTPS**.
-- **Distributed:** the Natural application layer and the Adabas data layer run on
-  separate Linux VMs so each layer can be sized, secured, and maintained
-  independently. The application VM runs the Natural OpenAPI Server, the Natural
-  Subprogram Server, the Natural Availability Server (browser users over **HTTPS**,
-  rendered through NWO), NDV, Natural, and Natural Security. The data VM runs Adabas
-  (AEL), the Adabas REST Server, Adabas Manager, and Natural Batch. The layers
-  communicate over **ADATCP/S**. A single NAS instance needs no shared session store;
+- **Distributed:** two Linux VMs. The application VM co-hosts the web layer — the
+  Natural OpenAPI Server and the Natural Availability Server (browser users over
+  **HTTPS**) — with the Natural application layer: the Natural Subprogram Server
+  (called by the OpenAPI Server), NWO (serving the NAS), NDV, Natural, and Natural
+  Security. The data VM runs Adabas (AEL), the Adabas REST Server, Adabas Manager, and
+  Natural Batch, so the Natural and Adabas layers can be sized, secured, and
+  maintained independently. The two VMs communicate over **ADATCP/S**. A single NAS instance needs no shared session store;
   for multiple NAS replicas and failover, use the Resilient HA blueprint.
 
 ## Key New Products
@@ -67,7 +68,7 @@ by remote callers.
   without affecting online users.
 
 ## Infrastructure & Security Resources
-- **Linux VMs (RedHat/SUSE)** – compute hosting the API, application, and data
+- **Linux VMs (RedHat/SUSE)** – compute hosting the web, application, and data
   layers.
 - **SAN / Block Storage** – persistent storage for the Adabas containers
   (ASSO · DATA · WORK · PLOG); enable encryption at rest.
@@ -91,7 +92,8 @@ published):
   one Linux VM hosting the Natural OpenAPI Server, Natural Subprogram Server, NDV,
   Natural, Natural Security, Natural Batch, and the Adabas components.
 - **Distributed** – `Adabas and Natural on On-Prem - Basic Distributed-v3.0.0.gif` –
-  an application VM (API and Natural runtime) and a data VM (Adabas and Natural
+  an application VM (web tier with the Natural OpenAPI Server and Natural
+  Availability Server, plus the Natural runtime) and a data VM (Adabas and Natural
   Batch) connected over ADATCP/S.
 
 ## Intended Use
